@@ -35,19 +35,19 @@ def _compose_result_real(v, y, diag_shift):
 
 #  Note: n_samp must be the total number of samples across all MPI processes!
 # Note: _sum_inplace can only be jitted through if we are in single process.
-@jit_if_singleproc
+@jit
 def _matvec_cmplx(v, oks, n_samp, diag_shift):
     y = _S_grad_mul(oks, v, n_samp)
     return _compose_result_cmplx(v, _sum_inplace(y), diag_shift)
 
 
-@jit_if_singleproc
+@jit
 def _matvec_real(v, oks, n_samp, diag_shift):
     y = _S_grad_mul(oks, v, n_samp)
     return _compose_result_real(v, _sum_inplace(y), diag_shift)
 
 
-@partial(jit_if_singleproc, static_argnums=1)
+@partial(jit, static_argnums=1)
 def _jax_cg_solve(
     x0, mat_vec, oks, grad, diag_shift, n_samp, sparse_tol, sparse_maxiter
 ):
@@ -103,11 +103,6 @@ class JaxSR:
         sparse_maxiter=None,
         machine=None,
     ):
-
-        if n_nodes > 1:
-            raise RuntimeError(
-                "Cannot use Jax-Stochastic Reconfiguration with multiple MPI processes"
-            )
 
         self._lsq_solver = lsq_solver
         self._diag_shift = diag_shift
