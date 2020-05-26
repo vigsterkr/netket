@@ -97,12 +97,76 @@ if jax_available:
 
         return x
 
+    from jax import core
+    from jax import abstract_arrays
+    from jax.lib import xla_client
+    from jax.interpreters import xla
+
+    _ops = xla_client.ops
+
+    ## The underlying jax primitive
+    sum_inplace_p = core.Primitive("sum_inplace_mpi")  # Create the primitive
+
+    # This function applies the primitive to a AST
+    def sum_inplace_jax_primitive(x):
+        return sum_inplace_p.bind(x)
+
+    #  this function executes the primitive, when not under any transformation
+    sum_inplace_p.def_impl(sum_inplace_jax)
+    # def sum_inplace_impl(x):
+    #    return sum_inplace_jax(x)
+    # sum_inplace_p.def_impl(sum_inplace_impl)
+
+    # This function evaluates only the shapes during AST construction
+    def sum_inplace_abstract_eval(xs):
+        return abstract_arrays.ShapedArray(xs.shape, xs.dtype)
+
+    sum_inplace_p.def_abstract_eval(sum_inplace_abstract_eval)
+
+    # Herlper functions
+    def _constant_s32_scalar(c, x):
+        return _ops.Constant(c, _np.int32(x))
+
+    def _unpack_builder(c):
+        # If `c` is a ComputationBuilder object, extracts the underlying XlaBuilder.
+        return getattr(c, "_builder", c)
+
+    #  This function compiles the operation
+    def sum_inplace_xla_encode(c, x):
+        c = _unpack_builder(c)
+        x_shape = c.GetShape(x)
+        dtype = x_shape.element_type()
+        dims = x_shape.dimensions()
+
+        # compute total number of elements in array
+        nitems = dims[0]
+        for el in dims[1:]:
+            nitems *= el
+
+        # those kernels have been loaded through cython.
+        if dtype == _np.float32:
+            kernel = b"sum_inplace_mpi_f32"
+        elif dtype == _np.float64:
+            kernel = b"sum_inplace_mpi_f64"
+        elif dtype == _np.complex64:
+            kernel = b"sum_inplace_mpi_c64"
+        elif dtype == _np.complex128:
+            kernel = b"sum_inplace_mpi_c128"
+
+        return _ops.CustomCall(
+            c,
+            kernel,
+            operands=(xla_client.ops.Constant(c, _np.int32(nitems)), x),
+            shape=xla_client.Shape.array_shape(dtype, dims),
+        )
+
+    # assign to the primitive the correct encoder
+    xla.backend_specific_translations["cpu"][sum_inplace_p] = sum_inplace_xla_encode
+
     @sum_inplace.register(jax.interpreters.partial_eval.JaxprTracer)
     @sum_inplace.register(jax.interpreters.ad.JVPTracer)
     def sum_inplace_jax_jittracer(x):
         if _n_nodes == 1:
             return x
         else:
-            raise RuntimError(
-                "Cannot jit through sum_inplace when running with multiple MPI processes."
-            )
+            return sum_inplace_jax_primitive(x)
