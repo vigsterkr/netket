@@ -9,6 +9,7 @@ setup(
     license="Apache 2.0",
     packages=[
         "netket",
+        "netket.cython",
         "netket.graph",
         "netket.hilbert",
         "netket.logging",

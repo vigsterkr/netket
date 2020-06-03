@@ -16,10 +16,10 @@ import netket as nk
 import numpy as np
 
 np.set_printoptions(linewidth=180)
-rg = nk.utils.RandomEngine(seed=1234)
+rg = nk.random.seed(seed=1234)
 
 # 1D Lattice
-L = 9
+L = 5
 g = nk.graph.Hypercube(length=L, n_dim=1, pbc=False)
 
 # Hilbert space of spins on the graph
@@ -43,13 +43,8 @@ for i in range(L):
     ha += nk.operator.LocalOperator(hi, np.kron(sz, sz), [i, (i + 1) % L])
     j_ops.append(nk.operator.LocalOperator(hi, sigmam, [i]))
 
-
 #  Create the lindbladian with no jump operators
-lind = nk.operator.LocalLiouvillian(ha)
-
-# add the jump operators
-for j_op in j_ops:
-    lind.add_jump_op(j_op)
+lind = nk.operator.LocalLiouvillian(ha, j_ops)
 
 
 rho = nk.exact.steady_state(
