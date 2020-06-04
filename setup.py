@@ -34,7 +34,10 @@ setup(
         "tqdm>=4.42.1",
         "numba>=0.48.0",
         "networkx>=2.4",
+        "cython>=0.21",
     ],
+    package_data={"netket.cython": ["*.pyx"]},
+    include_package_data=True,
     python_requires=">=3.6",
     extras_require={"dev": ["pytest", "python-igraph", "pre-commit", "black"],},
 )
