@@ -24,6 +24,7 @@
 #include <vector>
 #include "abstract_operator.hpp"
 #include "py_bosonhubbard.hpp"
+#include "py_bosonhubbardmod.hpp"
 #include "py_graph_operator.hpp"
 #include "py_local_operator.hpp"
 
@@ -103,6 +104,7 @@ void AddOperatorModule(py::module m) {
             )EOF");
 
   AddBoseHubbard(subm);
+  AddBoseHubbardMod(subm);
   AddLocalOperator(subm);
   AddGraphOperator(subm);
 }
